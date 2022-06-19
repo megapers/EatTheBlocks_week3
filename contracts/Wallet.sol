@@ -1,4 +1,6 @@
+//SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.4;
+
 
 contract Wallet {
     address[] public approvers;
@@ -11,7 +13,7 @@ contract Wallet {
         bool sent;
     }
     Transfer[] public transfers;
-    mapping(address =>  bool) public approvals;
+    mapping(address => mapping(uint256 => bool)) public approvals;
 
     constructor(address[] memory _approvers, uint256 _quorum) {
         approvers = _approvers;
@@ -33,14 +35,14 @@ contract Wallet {
         transfers.push(Transfer(transfers.length, amount, to, 0, false));
     }
 
-    function approveTransfer(uint256 id) external onlyApprover {
+    function approveTransfer(uint256 id) external payable onlyApprover {
         require(transfers[id].sent == false, "transfer has already been sent");
         require(
-            approvals[msg.sender] == false,
+            approvals[msg.sender][id] == false,
             "cannot approve transfer twice"
         );
 
-        approvals[msg.sender] = true;
+        approvals[msg.sender][id] = true;
         transfers[id].approvals++;
 
         if (transfers[id].approvals >= quorum) {
