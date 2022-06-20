@@ -1,5 +1,5 @@
 const { expect } = require('chai');
-const { ethers } = require('hardhat');
+const { ethers, network } = require('hardhat');
 
 describe('Wallet', async () => {
     let wallet;
@@ -30,7 +30,7 @@ describe('Wallet', async () => {
 
     it('Check wallet ballance', async () => {
         const walletBalance = await wallet.provider.getBalance(wallet.address)
-        expect(ethers.utils.parseEther("20")).to.be.equal(walletBalance);    
+        expect(ethers.utils.parseEther("20")).to.be.equal(walletBalance);
     });
 
     it('Should return correct approvers', async () => {
@@ -64,7 +64,7 @@ describe('Wallet', async () => {
         const balanceAfter = await signers[2].getBalance();
         const expectedBalance = balanceBefore.add(ethers.BigNumber.from(amountToSend));
         expect(expectedBalance).to.be.equal(balanceAfter);
-        
+
         const walletBalanceAfter = await wallet.provider.getBalance(wallet.address)
         const expectedWalletBlance = walletBalanceBefore.sub(ethers.BigNumber.from(amountToSend));
         expect(expectedWalletBlance).to.be.equal(walletBalanceAfter);
@@ -75,6 +75,38 @@ describe('Wallet', async () => {
 
         const tx = wallet.connect(signers[0]).approveTransfer(0);
         await expect(tx).to.be.revertedWith("transfer has already been sent");
+    });
+
+    it('Forking mainnet with Infura to transfer funds from Metamask to this wallet', async () => {
+        
+        //Using impersonated wallet and mainnet forking address to send ethers to our wallet 
+
+        const address = "0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B";
+        const transferValue = ethers.utils.parseEther('10');
+
+        const walletBalanceBefore = await wallet.provider.getBalance(wallet.address)
+        
+        await network.provider.request({
+            method: "hardhat_impersonateAccount",
+            params: [address],
+        });
+
+        const metamaskSigner = await ethers.provider.getSigner(address);
+        const balance = await metamaskSigner.getBalance();
+
+        //send ethers
+        const transferEthers = await metamaskSigner.sendTransaction({
+            to: wallet.address,
+            value: transferValue
+        });
+        const receipt = transferEthers.wait();
+
+        const walletBalanceAfter = await wallet.provider.getBalance(wallet.address)
+        
+        const expectedBalance = walletBalanceBefore.add(ethers.BigNumber.from(transferValue));
+
+        expect(expectedBalance).to.be.equal(walletBalanceAfter);
+
     });
 
 });
